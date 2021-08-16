@@ -1,7 +1,7 @@
 from aux import *
 
 alumnos, bloques = readExcel("Planificacion.xls")
-d, s = readLastSolution("Planificacion.xls", "output.xlsx")
+d, s = readLastSolution("Planificacion.xls", "nicolas.xlsx")
 isp = crearModeloSolucionAntigua(d, s)
 inicio = time.perf_counter()
 status = isp.optimize(max_seconds=300)
