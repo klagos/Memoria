@@ -47,14 +47,16 @@ def execISP():
 			listSol = checkStatus(isp, status)
 
 		toTable = []
+		b = []
+		a = []
 		for alumno,bloque in listSol:
 			toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
 		toTable.sort()
 
-		for i in toTable:
-			tv.insert('', 'end', values=i)
-			tv.insert('', 'end', values=i)
-			tv.insert('', 'end', values=i)
+		for bloque, alumno in toTable:
+			tv.insert('', 'end', values=[bloque, alumno])
+			b.append(bloque)
+			a.append(alumno)
 
 		excelVar = StringVar()
 		lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24)
@@ -63,7 +65,7 @@ def execISP():
 		generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
 		extensionArchivo  = Label(newWindow, text = ".xls", width = 5)
 		extensionArchivo.grid(pady = 5, row = 2, column = 1)
-		btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: dummy(excelVar, listSol))
+		btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: dummy(excelVar, b,a))
 		btnDummy.grid(row= 3, column = 0, columnspan = 2)
 
         # sets the title of the
@@ -77,9 +79,17 @@ def execISP():
 		#Label(newWindow,text ="Resultados Planificación").grid()
 
     
-def dummy(excelVar, listSol):
-	print(excelVar.get())
-	print(listSol)
+def dummy(excelVar, b, a):
+	excelVar = excelVar.get() + ".xlsx"
+	df = pd.DataFrame({'Bloques':b, 'Alumnos':a})
+	writer = pd.ExcelWriter(excelVar, engine = "xlsxwriter")
+	df.to_excel(writer, sheet_name="Planificacion", index=False)
+	workbook = writer.book
+	worksheet = writer.sheets["Planificacion"]
+	worksheet.set_column("A:A", 15)
+	worksheet.set_column("B:B", 15)
+	writer.save()
+	tk.messagebox.showinfo("Archivo creado",  "La planificación se ha generado correctamente!")
       
 root = tk.Tk()
 root.title("ISP Solver - By Kevin Lagos 2021")
