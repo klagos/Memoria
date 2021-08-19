@@ -139,10 +139,10 @@ def rellenarData(alumnos, bloques):
 
 	return (d,p)
 
-def crearModelo(d, p):
+def crearModelo(d, p, t):
 	n, m = d.shape
 
-	t = random.choices([1,2], [0.5, 0.5], k=n) # Cambiar
+	#t = random.choices([1,2], [0.5, 0.5], k=n) # Cambiar
 	isp = Model()
 
 	x = [[isp.add_var('x({},{})'.format(i, j), var_type=BINARY)

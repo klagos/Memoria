@@ -3,6 +3,43 @@ from tkinter import *
 from tkinter import ttk,filedialog, messagebox
 from aux import *
 
+class EditableListbox(tk.Listbox):
+    """A listbox where you can directly edit an item via double-click"""
+    def __init__(self, master, **kwargs):
+        super().__init__(master, **kwargs)
+        self.edit_item = None
+        self.bind("<Double-1>", self._start_edit)
+
+    def _start_edit(self, event):
+        index = self.index(f"@{event.x},{event.y}")
+        self.start_edit(index)
+        return "break"
+
+    def start_edit(self, index):
+        self.edit_item = index
+        text = self.get(index)
+        y0 = self.bbox(index)[1]
+        entry = tk.Entry(self, borderwidth=0, highlightthickness=1)
+        entry.bind("<Return>", self.accept_edit)
+        entry.bind("<Escape>", self.cancel_edit)
+
+        entry.insert(0, text)
+        entry.selection_from(0)
+        entry.selection_to("end")
+        entry.place(relx=0, y=y0, relwidth=1, width=-1)
+        entry.focus_set()
+        entry.grab_set()
+
+    def cancel_edit(self, event):
+        event.widget.destroy()
+
+    def accept_edit(self, event):
+        new_data = event.widget.get()
+        self.delete(self.edit_item)
+        self.insert(self.edit_item, new_data)
+        event.widget.destroy()
+
+
 def fileNameToEntry(varToAdd):
 
     files = [('Todos los archivos', '*.*'), 
@@ -77,11 +114,112 @@ def execISP():
 
 		# A Label widget to show in toplevel
 		#Label(newWindow,text ="Resultados Planificación").grid()
+		return
+	messagebox.showinfo("Error", "El archivo de Doodle no ha sido cargado.")
+	return
 
-def replanificar():
-	if fileName2.get() != "":
+def destroyWindow(window, alumnos, bloques, lb):
+	window.destroy()
+	t = list()
+	for data in lb:
+		_, val = data.strip().split("-> ")
+		val = int(val)
+		t.append(val)
+
+	newWindow = Toplevel(root)
+
+	# Tabla
+	tv = ttk.Treeview(newWindow, columns=(1,2), show="headings")
+	tv.grid(row = 0, column = 0, columnspan = 2, sticky="nsew")
+
+	tv.heading(1, text="Bloque")
+	tv.heading(2, text="Nombre Alumno")
+	d,p = rellenarData(alumnos, bloques)
+	isp = crearModelo(d, p, t)
+	status = isp.optimize(max_seconds=300)
+
+	if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
+		listSol = checkStatus(isp, status)
+	else:
+		messagebox.showinfo("Sin Solución", "No existe solución al problema.")
+		return
+
+	toTable = []
+	b = []
+	a = []
+	for alumno,bloque in listSol:
+		toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
+	toTable.sort()
+
+	for bloque, alumno in toTable:
+		tv.insert('', 'end', values=[bloque, alumno])
+		b.append(bloque)
+		a.append(alumno)
+
+	excelVar = StringVar()
+	lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24)
+	lblFileName.grid(padx = 3, pady = 5, row = 1, column = 0, columnspan = 2)
+	generarExcel  = Entry(newWindow, textvariable = excelVar, width = 20, font = ('bold'))
+	generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
+	extensionArchivo  = Label(newWindow, text = ".xls", width = 5)
+	extensionArchivo.grid(pady = 5, row = 2, column = 1)
+	btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcel(excelVar, b,a))
+	btnDummy.grid(row= 3, column = 0, columnspan = 2)
+
+    # sets the title of the
+    # Toplevel widget
+	newWindow.title("Resultados Planificación")
+
+	# sets the geometry of toplevel
+	newWindow.geometry("420x400")
+
+	# A Label widget to show in toplevel
+	#Label(newWindow,text ="Resultados Planificación").grid()
+	return
+
+def testISP():
+	if fileName.get() != "":
 		# Toplevel object which will
 		# be treated as a new window
+		alumnos, bloques = readExcel(fileName.get())
+		dictAlumnos = {}
+		for al in alumnos:
+			dictAlumnos[al.nombre] = 0
+
+		newWindow = Toplevel(root)
+		lb = EditableListbox(newWindow)
+		vsb = tk.Scrollbar(newWindow, command=lb.yview)
+		lb.configure(yscrollcommand=vsb.set)
+
+		vsb.pack(side="right", fill="y")
+		lb.pack(side="left", fill="both", expand=True)
+
+		for al, valoracion in dictAlumnos.items():
+		    lb.insert("end", f"{al} -> {valoracion}")
+		btnDestroy = Button(newWindow, text = "Ejecutar Solver", command = lambda: destroyWindow(newWindow, alumnos, bloques, lb.get(0, tk.END)))
+		btnDestroy.pack(side="left", fill="both", expand=True)
+	messagebox.showinfo("Error", "El archivo de Doodle no ha sido cargado.")
+	return
+
+def replanificar():
+	if fileName.get() != "" and fileName2.get() != "":
+		# Toplevel object which will
+		# be treated as a new window
+
+
+
+		# Codigo de ISP
+		alumnos, bloques = readExcel(fileName.get())
+		d, s = readLastSolution(fileName.get(), fileName2.get())
+		isp = crearModeloSolucionAntigua(d, s)
+		status = isp.optimize(max_seconds=300)
+
+		if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
+			listSol = checkStatus(isp, status)
+		else:
+			messagebox.showinfo("Sin Solución", "No existe solución al problema.")
+			return
+
 		newWindow2 = Toplevel(root)
 
 		# Tabla
@@ -90,17 +228,6 @@ def replanificar():
 
 		tv.heading(1, text="Bloque")
 		tv.heading(2, text="Nombre Alumno")
-
-
-		# Codigo de ISP
-		alumnos, bloques = readExcel(fileName.get())
-		d, s = readLastSolution("Planificacion.xls", "nicolas.xlsx")
-		isp = crearModeloSolucionAntigua(d, s)
-		status = isp.optimize(max_seconds=300)
-
-		if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
-			listSol = checkStatus(isp, status)
-
 		toTable = []
 		b = []
 		a = []
@@ -129,9 +256,12 @@ def replanificar():
 
 		# sets the geometry of toplevel
 		newWindow2.geometry("420x400")
+		return
 
 		# A Label widget to show in toplevel
 		#Label(newWindow2,text ="Resultados Planificación").grid()
+	messagebox.showinfo("Error", "Debes cargar ambos archivos para replanificar.")
+	return
 
 
     
@@ -170,11 +300,11 @@ btnGetFile2 = Button(root, text = "Subir Planificación Antigua", width = 24,
 btnGetFile2.grid(padx = 5, pady = 5, row = 1, column = 0)
 
 btnGenerarPlanificacion = Button(root, text = "Generar Planificación", width = 15,
-    command = execISP)
+    command = testISP)
 btnGenerarPlanificacion.grid(padx = 5, pady = 5, row = 2, column = 0)
 
 btnReplanificar = Button(root, text = "Replanificar", width = 15,
-    command = execISP)
+    command = replanificar)
 btnReplanificar.grid(padx = 5, pady = 5, row = 2, column = 1)
 
 root.mainloop()
