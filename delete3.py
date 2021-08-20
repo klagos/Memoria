@@ -1,32 +1,65 @@
 from aux import *
 
 alumnos, bloques = readExcel("Planificacion.xls")
-d, s = readLastSolution("Planificacion.xls", "nicolas.xlsx")
-isp = crearModeloSolucionAntigua(d, s)
-inicio = time.perf_counter()
-status = isp.optimize(max_seconds=300)
-fin = time.perf_counter()
+#d, s = readLastSolution("Doodle(1).xls", "test.xlsx")
+d,p = rellenarData(alumnos, bloques)
+#isp = crearModeloSolucionAntigua(d, s)
+t = [0 for i in range(d.shape[0])]
 
-if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
-  listSol = checkStatus(isp, status)
+lastValue = np.inf
+valoresObjetivo = list()
+listSoluciones = list()
+for i in range(10):
+  isp = crearModeloTest(d, p, t, lastValue)
+  status = isp.optimize(max_seconds=300)
+  obValue = isp.objective_value
 
-toTable = []
-b = []
-a = []
-for alumno,bloque in listSol:
-  toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
+  if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
+    valoresObjetivo.append(obValue)
+    lastValue = obValue
+    listSol = checkStatus(isp, status)
+    listSoluciones.append(listSol)
+  else:
+    break
 
-toTable.sort()
-for bloque, alumno in toTable:
-  b.append(bloque)
-  a.append(alumno)
 
-df = pd.DataFrame({'Bloques':b, 'Alumnos':a})
 
 writer = pd.ExcelWriter("outputNuevo.xlsx", engine = "xlsxwriter")
-df.to_excel(writer, sheet_name="Planificacion", index=False)
-workbook = writer.book
-worksheet = writer.sheets["Planificacion"]
-worksheet.set_column("A:A", 15)
-worksheet.set_column("B:B", 15)
+
+for solucion in range(len(listSoluciones)):
+  toTable = []
+  b = []
+  a = []
+  listSol = listSoluciones[solucion]
+  anterior = -1
+  for bloque,alumno in listSol:
+    if bloque == anterior + 1:
+      diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+      toTable.append([diaMes, alumnos[alumno].nombre])
+    else:
+      for i in range(anterior+1, bloque):
+        diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+        toTable.append([diaMes, "–"])
+      diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+      toTable.append([diaMes, alumnos[alumno].nombre])
+    anterior = bloque
+  toTable.sort()
+
+  if anterior != len(bloques) - 1:
+    for i in range(anterior + 1, len(bloques)):
+      diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+      toTable.append([diaMes, "–"])
+
+  for bloque, alumno in toTable:
+    b.append(bloque)
+    a.append(alumno)
+
+  df = pd.DataFrame({'Bloques':b, 'Alumnos':a})
+
+  sheet_name = "Planificacion " + str(solucion+1)
+  df.to_excel(writer, sheet_name=sheet_name, index=False)
+  workbook = writer.book
+  worksheet = writer.sheets[sheet_name]
+  worksheet.set_column("A:A", 15)
+  worksheet.set_column("B:B", 15)
 writer.save()

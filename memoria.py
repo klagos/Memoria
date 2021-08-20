@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk,filedialog, messagebox
 from aux import *
+from PIL import Image, ImageTk
+import time
 
 class EditableListbox(tk.Listbox):
     """A listbox where you can directly edit an item via double-click"""
@@ -126,7 +128,7 @@ def destroyWindow(window, alumnos, bloques, lb):
 		val = int(val)
 		t.append(val)
 
-	newWindow = Toplevel(root)
+	newWindow = Toplevel(root, bg="white")
 
 	# Tabla
 	tv = ttk.Treeview(newWindow, columns=(1,2), show="headings")
@@ -147,9 +149,26 @@ def destroyWindow(window, alumnos, bloques, lb):
 	toTable = []
 	b = []
 	a = []
-	for alumno,bloque in listSol:
-		toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
+
+	anterior = -1
+	listSol.sort()
+	for bloque,alumno in listSol:
+		if bloque == anterior + 1:
+			diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+			toTable.append([diaMes, alumnos[alumno].nombre])
+		else:
+			for i in range(anterior+1, bloque):
+				diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+				toTable.append([diaMes, "–"])
+			diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+			toTable.append([diaMes, alumnos[alumno].nombre])
+		anterior = bloque
 	toTable.sort()
+
+	if anterior != len(bloques) - 1:
+	  for i in range(anterior + 1, len(bloques)):
+	    diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+	    toTable.append([diaMes, "–"])
 
 	for bloque, alumno in toTable:
 		tv.insert('', 'end', values=[bloque, alumno])
@@ -157,11 +176,11 @@ def destroyWindow(window, alumnos, bloques, lb):
 		a.append(alumno)
 
 	excelVar = StringVar()
-	lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24)
+	lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24, bg="white")
 	lblFileName.grid(padx = 3, pady = 5, row = 1, column = 0, columnspan = 2)
 	generarExcel  = Entry(newWindow, textvariable = excelVar, width = 20, font = ('bold'))
 	generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
-	extensionArchivo  = Label(newWindow, text = ".xls", width = 5)
+	extensionArchivo  = Label(newWindow, text = ".xls", width = 5, bg="white")
 	extensionArchivo.grid(pady = 5, row = 2, column = 1)
 	btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcel(excelVar, b,a))
 	btnDummy.grid(row= 3, column = 0, columnspan = 2)
@@ -186,7 +205,7 @@ def testISP():
 		for al in alumnos:
 			dictAlumnos[al.nombre] = 0
 
-		newWindow = Toplevel(root)
+		newWindow = Toplevel(root, bg="white")
 		lb = EditableListbox(newWindow)
 		vsb = tk.Scrollbar(newWindow, command=lb.yview)
 		lb.configure(yscrollcommand=vsb.set)
@@ -198,6 +217,7 @@ def testISP():
 		    lb.insert("end", f"{al} -> {valoracion}")
 		btnDestroy = Button(newWindow, text = "Ejecutar Solver", command = lambda: destroyWindow(newWindow, alumnos, bloques, lb.get(0, tk.END)))
 		btnDestroy.pack(side="left", fill="both", expand=True)
+		return
 	messagebox.showinfo("Error", "El archivo de Doodle no ha sido cargado.")
 	return
 
@@ -205,8 +225,6 @@ def replanificar():
 	if fileName.get() != "" and fileName2.get() != "":
 		# Toplevel object which will
 		# be treated as a new window
-
-
 
 		# Codigo de ISP
 		alumnos, bloques = readExcel(fileName.get())
@@ -231,9 +249,25 @@ def replanificar():
 		toTable = []
 		b = []
 		a = []
-		for alumno,bloque in listSol:
-			toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
+		anterior = -1
+		listSol.sort()
+		for bloque,alumno in listSol:
+			if bloque == anterior + 1:
+				diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+				toTable.append([diaMes, alumnos[alumno].nombre])
+			else:
+				for i in range(anterior+1, bloque):
+					diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+					toTable.append([diaMes, "–"])
+				diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+				toTable.append([diaMes, alumnos[alumno].nombre])
+			anterior = bloque
 		toTable.sort()
+
+		if anterior != len(bloques) - 1:
+		  for i in range(anterior + 1, len(bloques)):
+		    diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+		    toTable.append([diaMes, "–"])
 
 		for bloque, alumno in toTable:
 			tv.insert('', 'end', values=[bloque, alumno])
@@ -269,16 +303,28 @@ def generateExcel(excelVar, b, a):
 	excelVar = excelVar.get() + ".xlsx"
 	df = pd.DataFrame({'Bloques':b, 'Alumnos':a})
 	writer = pd.ExcelWriter(excelVar, engine = "xlsxwriter")
-	df.to_excel(writer, sheet_name="Planificacion", index=False)
+	df.to_excel(writer, sheet_name="Planificacion", startrow= 1, index=False)
 	workbook = writer.book
 	worksheet = writer.sheets["Planificacion"]
-	worksheet.set_column("A:A", 15)
-	worksheet.set_column("B:B", 15)
+	strings = time.strftime("%Y,%m,%d,%H,%M,%S")
+	Y,M,D,h,m,s = strings.split(',')
+	cell_format = workbook.add_format({'align': 'center',
+                                   'valign': 'vcenter',
+                                   'border': 1})
+	worksheet.merge_range("A1:D1", "Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s), cell_format)
+	#worksheet.write(0,0,"Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s))
+	worksheet.set_column("A:A", 20)
+	worksheet.set_column("B:B", 20)
 	writer.save()
 	tk.messagebox.showinfo("Archivo creado",  "La planificación se ha generado correctamente!")
-      
+
 root = tk.Tk()
+root.configure(bg='white')
 root.title("ISP Solver - By Kevin Lagos 2021")
+logo = Image.open("logo.png")
+logo = ImageTk.PhotoImage(logo)
+logo_label = tk.Label(image=logo, borderwidth=0, highlightthickness=0)
+logo_label.grid(row = 0, column = 0, columnspan=2)
 #lblFileName  = Label(root, text = "Archivo seleccionado", width = 24)
 #lblFileName.grid(padx = 3, pady = 5, row = 0, column = 0)
 
@@ -288,23 +334,23 @@ fileName = StringVar()
 fileName2 = StringVar()
 
 txtFileName  = Entry(root, textvariable = fileName, width = 24, font = ('bold'))
-txtFileName.grid(padx = 3, pady = 5, row = 0, column = 1)
+txtFileName.grid(padx = 3, pady = 5, row = 1, column = 1)
 btnGetFile = Button(root, text = "Subir Doodle", width = 24,
     command = lambda: fileNameToEntry(fileName))
-btnGetFile.grid(padx = 5, pady = 5, row = 0, column = 0)
+btnGetFile.grid(padx = 5, pady = 5, row = 1, column = 0)
 
 txtFileName2  = Entry(root, textvariable = fileName2, width = 24, font = ('bold'))
-txtFileName2.grid(padx = 3, pady = 5, row = 1, column = 1)
+txtFileName2.grid(padx = 3, pady = 5, row = 2, column = 1)
 btnGetFile2 = Button(root, text = "Subir Planificación Antigua", width = 24,
     command = lambda: fileNameToEntry(fileName2))
-btnGetFile2.grid(padx = 5, pady = 5, row = 1, column = 0)
+btnGetFile2.grid(padx = 5, pady = 5, row = 2, column = 0)
 
 btnGenerarPlanificacion = Button(root, text = "Generar Planificación", width = 15,
     command = testISP)
-btnGenerarPlanificacion.grid(padx = 5, pady = 5, row = 2, column = 0)
+btnGenerarPlanificacion.grid(padx = 5, pady = 5, row = 3, column = 0)
 
 btnReplanificar = Button(root, text = "Replanificar", width = 15,
     command = replanificar)
-btnReplanificar.grid(padx = 5, pady = 5, row = 2, column = 1)
+btnReplanificar.grid(padx = 5, pady = 5, row = 3, column = 1)
 
 root.mainloop()
