@@ -137,6 +137,22 @@ def destroyWindow(window, alumnos, bloques, lb):
 	tv.heading(1, text="Bloque")
 	tv.heading(2, text="Nombre Alumno")
 	d,p = rellenarData(alumnos, bloques)
+	lastValue = np.inf
+	valoresObjetivo = list()
+	listSoluciones = list()
+	for i in range(10):
+	  isp = crearModeloTest(d, p, t, lastValue)
+	  status = isp.optimize(max_seconds=300)
+	  obValue = isp.objective_value
+
+	  if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
+	    valoresObjetivo.append(obValue)
+	    lastValue = obValue
+	    listSol = checkStatus(isp, status)
+	    listSoluciones.append(listSol)
+	  else:
+	    break
+	'''
 	isp = crearModelo(d, p, t)
 	status = isp.optimize(max_seconds=300)
 
@@ -145,13 +161,14 @@ def destroyWindow(window, alumnos, bloques, lb):
 	else:
 		messagebox.showinfo("Sin Solución", "No existe solución al problema.")
 		return
-
+	
+	'''
 	toTable = []
 	b = []
 	a = []
 
 	anterior = -1
-	listSol.sort()
+	listSol = listSoluciones[0]
 	for bloque,alumno in listSol:
 		if bloque == anterior + 1:
 			diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
@@ -175,6 +192,40 @@ def destroyWindow(window, alumnos, bloques, lb):
 		b.append(bloque)
 		a.append(alumno)
 
+	# Creacion de otras soluciones
+	B = list()
+	A = list()
+	for solucion in range(len(listSoluciones)):
+		toTable = []
+		b = []
+		a = []
+
+		anterior = -1
+		listSol = listSoluciones[solucion]
+		for bloque,alumno in listSol:
+			if bloque == anterior + 1:
+				diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+				toTable.append([diaMes, alumnos[alumno].nombre])
+			else:
+				for i in range(anterior+1, bloque):
+					diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+					toTable.append([diaMes, "–"])
+				diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
+				toTable.append([diaMes, alumnos[alumno].nombre])
+			anterior = bloque
+		toTable.sort()
+
+		if anterior != len(bloques) - 1:
+		  for i in range(anterior + 1, len(bloques)):
+		    diaMes = bloques[i].dia + "/" + bloques[i].mes + " " + bloques[i].horario
+		    toTable.append([diaMes, "–"])
+
+		for bloque, alumno in toTable:
+			b.append(bloque)
+			a.append(alumno)
+		B.append(b)
+		A.append(a)
+
 	excelVar = StringVar()
 	lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24, bg="white")
 	lblFileName.grid(padx = 3, pady = 5, row = 1, column = 0, columnspan = 2)
@@ -182,7 +233,7 @@ def destroyWindow(window, alumnos, bloques, lb):
 	generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
 	extensionArchivo  = Label(newWindow, text = ".xls", width = 5, bg="white")
 	extensionArchivo.grid(pady = 5, row = 2, column = 1)
-	btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcel(excelVar, b,a))
+	btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcelPlanificacion(excelVar, B,A))
 	btnDummy.grid(row= 3, column = 0, columnspan = 2)
 
     # sets the title of the
@@ -206,17 +257,21 @@ def testISP():
 			dictAlumnos[al.nombre] = 0
 
 		newWindow = Toplevel(root, bg="white")
-		lb = EditableListbox(newWindow)
+		lb = EditableListbox(newWindow, font=("Courier New", 10))
 		vsb = tk.Scrollbar(newWindow, command=lb.yview)
 		lb.configure(yscrollcommand=vsb.set)
 
 		vsb.pack(side="right", fill="y")
 		lb.pack(side="left", fill="both", expand=True)
 
+
+		largoMax = max([len(nombreAlumno) for nombreAlumno in dictAlumnos.keys()])
 		for al, valoracion in dictAlumnos.items():
-		    lb.insert("end", f"{al} -> {valoracion}")
+			al = al + " " * (largoMax - len(al))
+			lb.insert("end", f"{al} -> {valoracion}")
 		btnDestroy = Button(newWindow, text = "Ejecutar Solver", command = lambda: destroyWindow(newWindow, alumnos, bloques, lb.get(0, tk.END)))
 		btnDestroy.pack(side="left", fill="both", expand=True)
+		newWindow.geometry("450x500")
 		return
 	messagebox.showinfo("Error", "El archivo de Doodle no ha sido cargado.")
 	return
@@ -250,7 +305,6 @@ def replanificar():
 		b = []
 		a = []
 		anterior = -1
-		listSol.sort()
 		for bloque,alumno in listSol:
 			if bloque == anterior + 1:
 				diaMes = bloques[bloque].dia + "/" + bloques[bloque].mes + " " + bloques[bloque].horario
@@ -315,6 +369,29 @@ def generateExcel(excelVar, b, a):
 	#worksheet.write(0,0,"Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s))
 	worksheet.set_column("A:A", 20)
 	worksheet.set_column("B:B", 20)
+	writer.save()
+	tk.messagebox.showinfo("Archivo creado",  "La planificación se ha generado correctamente!")
+
+def generateExcelPlanificacion(excelVar, B, A):
+	excelVar = excelVar.get() + ".xlsx"
+	writer = pd.ExcelWriter(excelVar, engine = "xlsxwriter")
+	for i in range(len(B)):
+		b = B[i]
+		a = A[i]
+		df = pd.DataFrame({'Bloques':b, 'Alumnos':a})
+		sheet_name = "Planificacion " + str(i+1)
+		df.to_excel(writer, sheet_name=sheet_name, startrow= 1, index=False)
+		workbook = writer.book
+		worksheet = writer.sheets[sheet_name]
+		strings = time.strftime("%Y,%m,%d,%H,%M,%S")
+		Y,M,D,h,m,s = strings.split(',')
+		cell_format = workbook.add_format({'align': 'center',
+	                                   'valign': 'vcenter',
+	                                   'border': 1})
+		worksheet.merge_range("A1:D1", "Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s), cell_format)
+		#worksheet.write(0,0,"Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s))
+		worksheet.set_column("A:A", 20)
+		worksheet.set_column("B:B", 20)
 	writer.save()
 	tk.messagebox.showinfo("Archivo creado",  "La planificación se ha generado correctamente!")
 
