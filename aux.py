@@ -121,7 +121,6 @@ def rellenarData(alumnos, bloques):
 def crearModelo(d, p, t):
 	n, m = d.shape
 
-	#t = random.choices([1,2], [0.5, 0.5], k=n) # Cambiar
 	isp = Model()
 
 	x = [[isp.add_var('x({},{})'.format(i, j), var_type=BINARY)
@@ -179,16 +178,6 @@ def crearModeloSolucionAntigua(d, s):
 
 def checkStatus(isp, status):
 	listSol = []
-	'''
-	if status == OptimizationStatus.OPTIMAL:
-		print('optimal solution cost {} found'.format(isp.objective_value))
-	elif status == OptimizationStatus.FEASIBLE:
-		print('sol.cost {} found, best possible: {}'.format(isp.objective_value, isp.objective_bound))
-	elif status == OptimizationStatus.NO_SOLUTION_FOUND:
-		print('no feasible solution found, lower bound is: {}'.format(isp.objective_bound))
-	else:
-		print(status)
-	'''
 	if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
 		listSol = []
 		#print('solution:')
@@ -214,8 +203,6 @@ def browsefunc():
 
 def crearModeloTest(d, p, t, lastValue):
 	n, m = d.shape
-
-	#t = random.choices([1,2], [0.5, 0.5], k=n) # Cambiar
 	isp = Model()
 
 	x = [[isp.add_var('x({},{})'.format(i, j), var_type=BINARY)

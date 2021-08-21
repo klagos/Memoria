@@ -60,66 +60,6 @@ def fileNameToEntry(varToAdd):
     else:
         varToAdd.set(filename)
 
-def execISP():
-	if fileName.get() != "":
-		# Toplevel object which will
-		# be treated as a new window
-		newWindow = Toplevel(root)
-
-		# Tabla
-		tv = ttk.Treeview(newWindow, columns=(1,2), show="headings")
-		tv.grid(row = 0, column = 0, columnspan = 2, sticky="nsew")
-
-		tv.heading(1, text="Bloque")
-		tv.heading(2, text="Nombre Alumno")
-
-
-		# Codigo de ISP
-		alumnos, bloques = readExcel(fileName.get())
-		d,p = rellenarData(alumnos, bloques)
-		isp = crearModelo(d, p)
-		inicio = time.perf_counter()
-		status = isp.optimize(max_seconds=300)
-		fin = time.perf_counter()
-
-		if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
-			listSol = checkStatus(isp, status)
-
-		toTable = []
-		b = []
-		a = []
-		for alumno,bloque in listSol:
-			toTable.append([bloques[bloque].horario, alumnos[alumno].nombre])
-		toTable.sort()
-
-		for bloque, alumno in toTable:
-			tv.insert('', 'end', values=[bloque, alumno])
-			b.append(bloque)
-			a.append(alumno)
-
-		excelVar = StringVar()
-		lblFileName  = Label(newWindow, text = "Nombre archivo a generar", width = 24)
-		lblFileName.grid(padx = 3, pady = 5, row = 1, column = 0, columnspan = 2)
-		generarExcel  = Entry(newWindow, textvariable = excelVar, width = 20, font = ('bold'))
-		generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
-		extensionArchivo  = Label(newWindow, text = ".xls", width = 5)
-		extensionArchivo.grid(pady = 5, row = 2, column = 1)
-		btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcel(excelVar, b,a))
-		btnDummy.grid(row= 3, column = 0, columnspan = 2)
-
-        # sets the title of the
-        # Toplevel widget
-		newWindow.title("Resultados Planificación")
-
-		# sets the geometry of toplevel
-		newWindow.geometry("420x400")
-
-		# A Label widget to show in toplevel
-		#Label(newWindow,text ="Resultados Planificación").grid()
-		return
-	messagebox.showinfo("Error", "El archivo de Doodle no ha sido cargado.")
-	return
-
 def destroyWindow(window, alumnos, bloques, lb):
 	window.destroy()
 	t = list()
@@ -152,17 +92,7 @@ def destroyWindow(window, alumnos, bloques, lb):
 	    listSoluciones.append(listSol)
 	  else:
 	    break
-	'''
-	isp = crearModelo(d, p, t)
-	status = isp.optimize(max_seconds=300)
 
-	if status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE:
-		listSol = checkStatus(isp, status)
-	else:
-		messagebox.showinfo("Sin Solución", "No existe solución al problema.")
-		return
-	
-	'''
 	toTable = []
 	b = []
 	a = []
@@ -233,18 +163,12 @@ def destroyWindow(window, alumnos, bloques, lb):
 	generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
 	extensionArchivo  = Label(newWindow, text = ".xls", width = 5, bg="white")
 	extensionArchivo.grid(pady = 5, row = 2, column = 1)
-	btnDummy = Button(newWindow, text = "Imprimir Tabla", width = 15, command = lambda: generateExcelPlanificacion(excelVar, B,A))
-	btnDummy.grid(row= 3, column = 0, columnspan = 2)
+	btnGenerateExcel = Button(newWindow, text = "Exportar a Excel", width = 15, command = lambda: generateExcelPlanificacion(excelVar, B,A))
+	btnGenerateExcel.grid(row= 3, column = 0, columnspan = 2)
 
-    # sets the title of the
-    # Toplevel widget
 	newWindow.title("Resultados Planificación")
-
-	# sets the geometry of toplevel
 	newWindow.geometry("420x400")
 
-	# A Label widget to show in toplevel
-	#Label(newWindow,text ="Resultados Planificación").grid()
 	return
 
 def testISP():
@@ -335,19 +259,12 @@ def replanificar():
 		generarExcel.grid(padx = 3, pady = 5, row = 2, column = 0, columnspan = 2)
 		extensionArchivo  = Label(newWindow2, text = ".xls", width = 5)
 		extensionArchivo.grid(pady = 5, row = 2, column = 1)
-		btnDummy = Button(newWindow2, text = "Imprimir Tabla", width = 15, command = lambda: generateExcel(excelVar, b,a))
-		btnDummy.grid(row= 3, column = 0, columnspan = 2)
+		btnGenerateExcel = Button(newWindow2, text = "Exportar a Excel", width = 15, command = lambda: generateExcel(excelVar, b,a))
+		btnGenerateExcel.grid(row= 3, column = 0, columnspan = 2)
 
-        # sets the title of the
-        # Toplevel widget
 		newWindow2.title("Resultados Planificación")
-
-		# sets the geometry of toplevel
 		newWindow2.geometry("420x400")
 		return
-
-		# A Label widget to show in toplevel
-		#Label(newWindow2,text ="Resultados Planificación").grid()
 	messagebox.showinfo("Error", "Debes cargar ambos archivos para replanificar.")
 	return
 
@@ -366,7 +283,6 @@ def generateExcel(excelVar, b, a):
                                    'valign': 'vcenter',
                                    'border': 1})
 	worksheet.merge_range("A1:D1", "Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s), cell_format)
-	#worksheet.write(0,0,"Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s))
 	worksheet.set_column("A:A", 20)
 	worksheet.set_column("B:B", 20)
 	writer.save()
@@ -389,7 +305,6 @@ def generateExcelPlanificacion(excelVar, B, A):
 	                                   'valign': 'vcenter',
 	                                   'border': 1})
 		worksheet.merge_range("A1:D1", "Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s), cell_format)
-		#worksheet.write(0,0,"Planificación de Interrogaciones - {0}/{1}/{2} {3}:{4}:{5}".format(D,M,Y,h,m,s))
 		worksheet.set_column("A:A", 20)
 		worksheet.set_column("B:B", 20)
 	writer.save()
@@ -402,10 +317,8 @@ logo = Image.open("logo.png")
 logo = ImageTk.PhotoImage(logo)
 logo_label = tk.Label(image=logo, borderwidth=0, highlightthickness=0)
 logo_label.grid(row = 0, column = 0, columnspan=2)
-#lblFileName  = Label(root, text = "Archivo seleccionado", width = 24)
-#lblFileName.grid(padx = 3, pady = 5, row = 0, column = 0)
 
-#make global variable to access anywhere
+#Nombres de archivos globales
 global fileName, fileName2
 fileName = StringVar()
 fileName2 = StringVar()
